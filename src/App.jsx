@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import * as bootstrap from "bootstrap";
+import Pagination from "./components/Pagination";
+import ProductModal from "./components/ProductModal";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "https://ec-course-api.hexschool.io/v2";
 const DEFAULT_API_PATH = import.meta.env.VITE_API_PATH ?? "kaso1114";
@@ -23,6 +25,7 @@ function App() {
   const productModalRef = useRef(null);
   const [isAuth, setIsAuth] = useState(false);
   const [products, setProducts] = useState([]);
+  const [pagination, setPagination] = useState({});
   const [modalType, setModalType] = useState("");
   const [templateData, setTemplateData] = useState(INITIAL_TEMPLATE_DATA);
   const [isLoading, setIsLoading] = useState(false);
@@ -67,12 +70,16 @@ function App() {
     }
   };
 
-  const getProductData = async () => {
+  const getProductData = async (page = 1) => {
     setIsLoading(true);
     try {
-      const response = await axios.get(`${API_BASE}/api/${apiPath}/admin/products`);
+      const response = await axios.get(`${API_BASE}/api/${apiPath}/admin/products`, {
+        params: { page },
+      });
       const productList = response?.data?.products ?? [];
+      const paginationData = response?.data?.pagination ?? {};
       setProducts(Object.values(productList));
+      setPagination(paginationData);
     } catch (error) {
       console.log("取得產品列表失敗：", error?.response?.data?.message || error.message);
     } finally {
@@ -158,6 +165,28 @@ function App() {
     }
   };
 
+  const handleFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const formData = new FormData();
+      formData.append("file-to-upload", file);
+
+      const response = await axios.post(`${API_BASE}/api/${apiPath}/admin/upload`, formData);
+      const uploadedImageUrl = response?.data?.imageUrl;
+
+      if (uploadedImageUrl) {
+        setTemplateData((prevData) => ({
+          ...prevData,
+          imageUrl: uploadedImageUrl,
+        }));
+      }
+    } catch (error) {
+      console.log("上傳圖片失敗：", error?.response?.data?.message || error.message);
+    }
+  };
+
   const handleLoginChange = (event) => {
     const { name, value } = event.target;
     setLoginForm((prev) => ({
@@ -195,6 +224,7 @@ function App() {
     delete axios.defaults.headers.common.Authorization;
     setIsAuth(false);
     setProducts([]);
+    setPagination({});
   };
 
   useEffect(() => {
@@ -354,172 +384,20 @@ function App() {
               </table>
               {isLoading && <div className="text-center text-muted py-3">載入中...</div>}
             </div>
+            <Pagination pagination={pagination} changePage={getProductData} />
           </div>
         </div>
       )}
-
-      <div className="modal fade" id="productModal" tabIndex="-1" aria-hidden="true">
-        <div className="modal-dialog modal-lg modal-dialog-scrollable">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h2 className="modal-title fs-5">{modalTitle}</h2>
-              <button type="button" className="btn-close" aria-label="Close" onClick={closeModal}></button>
-            </div>
-            <div className="modal-body">
-              {modalType === "delete" ? (
-                <p className="mb-0">
-                  確定要刪除 <strong>{templateData.title}</strong> 嗎？此操作無法復原。
-                </p>
-              ) : (
-                <form className="row g-3">
-                  <div className="col-md-6">
-                    <label className="form-label" htmlFor="title">
-                      產品名稱
-                    </label>
-                    <input
-                      id="title"
-                      name="title"
-                      type="text"
-                      className="form-control"
-                      value={templateData.title}
-                      onChange={handleModalInputChange}
-                    />
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label" htmlFor="category">
-                      分類
-                    </label>
-                    <input
-                      id="category"
-                      name="category"
-                      type="text"
-                      className="form-control"
-                      value={templateData.category}
-                      onChange={handleModalInputChange}
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label" htmlFor="unit">
-                      單位
-                    </label>
-                    <input
-                      id="unit"
-                      name="unit"
-                      type="text"
-                      className="form-control"
-                      value={templateData.unit}
-                      onChange={handleModalInputChange}
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label" htmlFor="origin_price">
-                      原價
-                    </label>
-                    <input
-                      id="origin_price"
-                      name="origin_price"
-                      type="number"
-                      className="form-control"
-                      value={templateData.origin_price}
-                      onChange={handleModalInputChange}
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label" htmlFor="price">
-                      售價
-                    </label>
-                    <input
-                      id="price"
-                      name="price"
-                      type="number"
-                      className="form-control"
-                      value={templateData.price}
-                      onChange={handleModalInputChange}
-                    />
-                  </div>
-                  <div className="col-12">
-                    <label className="form-label" htmlFor="description">
-                      產品描述
-                    </label>
-                    <textarea
-                      id="description"
-                      name="description"
-                      className="form-control"
-                      rows="2"
-                      value={templateData.description}
-                      onChange={handleModalInputChange}
-                    />
-                  </div>
-                  <div className="col-12">
-                    <label className="form-label" htmlFor="content">
-                      說明內容
-                    </label>
-                    <textarea
-                      id="content"
-                      name="content"
-                      className="form-control"
-                      rows="2"
-                      value={templateData.content}
-                      onChange={handleModalInputChange}
-                    />
-                  </div>
-                  <div className="col-12">
-                    <label className="form-label" htmlFor="imageUrl">
-                      主要圖片
-                    </label>
-                    <input
-                      id="imageUrl"
-                      name="imageUrl"
-                      type="text"
-                      className="form-control"
-                      value={templateData.imageUrl}
-                      onChange={handleModalInputChange}
-                    />
-                  </div>
-                  <div className="col-12">
-                    <label className="form-label">其他圖片</label>
-                    <div className="d-flex flex-column gap-2">
-                      {templateData.imagesUrl.map((url, index) => (
-                        <input
-                          key={`image-${index}`}
-                          type="text"
-                          className="form-control"
-                          value={url}
-                          onChange={(event) => handleImageChange(index, event.target.value)}
-                          placeholder={`圖片連結 ${index + 1}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <div className="col-12">
-                    <div className="form-check">
-                      <input
-                        id="is_enabled"
-                        name="is_enabled"
-                        type="checkbox"
-                        className="form-check-input"
-                        checked={templateData.is_enabled}
-                        onChange={handleModalInputChange}
-                      />
-                      <label className="form-check-label" htmlFor="is_enabled">
-                        是否啟用
-                      </label>
-                    </div>
-                  </div>
-                </form>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-outline-secondary" onClick={closeModal}>
-                取消
-              </button>
-              <button type="button" className="btn btn-primary" onClick={handleSubmit}>
-                確認
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ProductModal
+        modalType={modalType}
+        modalTitle={modalTitle}
+        templateData={templateData}
+        onCloseModal={closeModal}
+        onInputChange={handleModalInputChange}
+        onImageChange={handleImageChange}
+        onFileChange={handleFileChange}
+        onSubmit={handleSubmit}
+      />
     </div>
   );
 }
